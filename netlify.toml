@@ -1,0 +1,11 @@
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+
+[[redirects]]
+from = "/api/*" #redirect api requests to backend 
+to = "https://gemini-quest.onrender.com/:splat"
+status = 200
+force = true 
