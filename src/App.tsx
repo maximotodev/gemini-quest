@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import "./App.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { GameState, TriviaQuestion } from "./types";
 import {
