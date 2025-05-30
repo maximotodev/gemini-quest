@@ -7,7 +7,10 @@ import {
   TIME_PER_QUESTION,
   ANSWER_FEEDBACK_DURATION,
 } from "./constants";
-import { fetchTriviaQuestion } from "./services/geminiService";
+import {
+  clearAskedQuestions,
+  fetchTriviaQuestion,
+} from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
 import QuestionDisplay from "./components/QuestionDisplay";
 import Timer from "./components/Timer";
@@ -103,6 +106,7 @@ const App: React.FC = () => {
   }, [gameState, handleAnswer]);
 
   const handleRestart = () => {
+    clearAskedQuestions();
     setGameState(GameState.SelectingCategory);
     setCurrentQuestionData(null);
     setSelectedCategory(null);
