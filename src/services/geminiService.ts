@@ -2,7 +2,7 @@
 import axios from "axios";
 import { TriviaQuestion } from "../types";
 
-const API_BASE_URL = "http://127.0.0.1:5000"; // Or your deployed backend URL
+const API_BASE_URL = "https://gemini-quest.onrender.com"; // Or your deployed backend URL
 
 export const fetchTriviaQuestions = async (
   category: string,
