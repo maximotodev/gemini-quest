@@ -2,45 +2,19 @@
 import axios from "axios";
 import { TriviaQuestion } from "../types";
 
-const API_BASE_URL = "https://gemini-quest.onrender.com"; // Or your deployed backend URL
-const askedQuestions: Set<string> = new Set(); // Keep track of asked questions
+const API_BASE_URL = "http://127.0.0.1:5000"; // Or your deployed backend URL
 
-export const fetchTriviaQuestion = async (
-  category: string
-): Promise<TriviaQuestion | null> => {
+export const fetchTriviaQuestions = async (
+  category: string,
+  numQuestions: number = 10
+): Promise<TriviaQuestion[] | null> => {
   try {
-    let question: TriviaQuestion | null = null;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 3; // Adjust if needed
-
-    while (!question && attempts < MAX_ATTEMPTS) {
-      // Retry logic if we've already asked this questions, only fetch up to 3 times
-      const response = await axios.post<TriviaQuestion>(
-        `${API_BASE_URL}/api/question`,
-        { category }
-      );
-      const newQuestion = response.data;
-
-      if (!askedQuestions.has(newQuestion.question)) {
-        //New questions. Checks if has been asked before. Very likely won't match since using LLM which generates with a degree of randomness, but good defensive coding
-        question = newQuestion;
-        askedQuestions.add(newQuestion.question);
-      } else {
-        attempts++;
-      }
-    }
-
-    if (!question) {
-      // Handle the case where no unique question could be found after multiple attempts, may signal bad prompt/configuration issues for the model
-      throw new Error(
-        "Could not fetch a unique question. Our cosmic reserves are depleted. Please try again or refresh the universe."
-      );
-    }
-
-    return question;
+    const response = await axios.post<TriviaQuestion[]>(
+      `${API_BASE_URL}/api/questions`, // Changed endpoint
+      { category, num_questions: numQuestions } // Pass num_questions
+    );
+    return response.data; // Return the array of questions
   } catch (error) {
-    // Handle the error and return null or re-throw error for higher-level handling (in App.tsx or elsewhere).
-
     if (axios.isAxiosError(error)) {
       console.error("Axios Error:", error.message, error.response?.data);
     } else {
@@ -50,6 +24,11 @@ export const fetchTriviaQuestion = async (
   }
 };
 
-export const clearAskedQuestions = () => {
-  askedQuestions.clear();
+export const clearCache = async () => {
+  try {
+    await axios.post(`${API_BASE_URL}/api/clear_cache`); // Call the new endpoint
+  } catch (error) {
+    console.error("Error clearing cache:", error);
+    // Handle the error (e.g., show a message to the user)
+  }
 };

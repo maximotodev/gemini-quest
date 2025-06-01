@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+// frontend/src/App.tsx
 import "./App.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { GameState, TriviaQuestion } from "./types";
@@ -8,8 +8,9 @@ import {
   ANSWER_FEEDBACK_DURATION,
 } from "./constants";
 import {
-  clearAskedQuestions,
-  fetchTriviaQuestion,
+  fetchTriviaQuestions, // Changed to fetchTriviaQuestions
+  // Import the function to clear the cache
+  clearCache,
 } from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
 import QuestionDisplay from "./components/QuestionDisplay";
@@ -23,28 +24,31 @@ const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(
     GameState.SelectingCategory
   );
-  const [currentQuestionData, setCurrentQuestionData] =
-    useState<TriviaQuestion | null>(null);
-  const [score, setScore] = useState<number>(0);
+  const [questions, setQuestions] = useState<TriviaQuestion[] | null>(null); // Array of questions
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const [score, setScore] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [userAnswer, setUserAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // New loading state
 
-  const loadQuestion = useCallback(async (category: string) => {
-    setGameState(GameState.LoadingQuestion);
+  const loadQuestions = useCallback(async (category: string) => {
+    // Changed name
+    setIsLoading(true);
     setError(null);
     setUserAnswer(null);
     try {
-      const question = await fetchTriviaQuestion(category);
-      if (question) {
-        setCurrentQuestionData(question);
+      const fetchedQuestions = await fetchTriviaQuestions(category); // Use the new function
+      if (fetchedQuestions && fetchedQuestions.length > 0) {
+        setQuestions(fetchedQuestions);
         setGameState(GameState.Playing);
+        setCurrentQuestionIndex(0); // Reset index
+        setScore(0);
         setIsTimerPaused(false);
       } else {
         setError(
-          "Failed to load question. The cosmos is silent. Try a different category or try again."
+          "Failed to load questions. The cosmos is silent. Try a different category or try again."
         );
         setGameState(GameState.SelectingCategory); // Or an error state
       }
@@ -53,65 +57,69 @@ const App: React.FC = () => {
       setError(
         err instanceof Error
           ? err.message
-          : "An unknown error occurred while fetching question."
+          : "An unknown error occurred while fetching questions."
       );
       setGameState(GameState.SelectingCategory); // Or an error state
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   const handleStartGame = useCallback(
     (category: string) => {
       setSelectedCategory(category);
-      setCurrentQuestionIndex(0);
-      setScore(0);
-      loadQuestion(category);
+      loadQuestions(category); // Changed to loadQuestions
     },
-    [loadQuestion]
+    [loadQuestions]
   );
 
   const handleAnswer = useCallback(
     (answer: string) => {
-      if (gameState !== GameState.Playing) return;
+      if (gameState !== GameState.Playing || !questions) return; //Check questions
 
       setIsTimerPaused(true);
       setUserAnswer(answer);
       setGameState(GameState.Answered);
 
-      if (answer === currentQuestionData?.correctAnswer) {
+      const currentQuestion = questions[currentQuestionIndex]; // Get current question
+      if (currentQuestion && answer === currentQuestion.correctAnswer) {
         setScore((prevScore) => prevScore + 10);
       }
 
       setTimeout(() => {
-        if (currentQuestionIndex < TOTAL_QUESTIONS - 1) {
+        if (currentQuestionIndex < questions.length - 1) {
           setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
-          if (selectedCategory) loadQuestion(selectedCategory);
+          setIsTimerPaused(false); // Start timer for next question
+          setGameState(GameState.Playing); // Set state back to playing.
+          setUserAnswer(null); //Clear answer
         } else {
           setGameState(GameState.GameOver);
         }
       }, ANSWER_FEEDBACK_DURATION);
     },
-    [
-      gameState,
-      currentQuestionData,
-      currentQuestionIndex,
-      selectedCategory,
-      loadQuestion,
-    ]
+    [gameState, questions, currentQuestionIndex]
   );
 
   const handleTimeUp = useCallback(() => {
-    if (gameState === GameState.Playing) {
-      handleAnswer("__TIME_UP__"); // Treat time up as a wrong answer or specific handling
+    if (gameState === GameState.Playing && questions) {
+      // Check if questions loaded
+      handleAnswer("__TIME_UP__");
     }
-  }, [gameState, handleAnswer]);
+  }, [gameState, handleAnswer, questions]);
 
-  const handleRestart = () => {
-    clearAskedQuestions();
+  const handleRestart = useCallback(async () => {
+    // Clear the questions in the frontend
+    setQuestions(null);
     setGameState(GameState.SelectingCategory);
-    setCurrentQuestionData(null);
     setSelectedCategory(null);
-    // Score and question index are reset in handleStartGame
-  };
+    // Call backend to clear cache
+    try {
+      await clearCache(); // Call the clearCache function from geminiService
+    } catch (error) {
+      console.error("Error clearing cache:", error);
+      // Optionally: set an error state in frontend
+    }
+  }, []);
 
   // Effect to handle potential API key issues early
   useEffect(() => {
@@ -140,15 +148,10 @@ const App: React.FC = () => {
     gameState === GameState.SelectingCategory ||
     gameState === GameState.Idle
   ) {
-    // Fix: isLoading prop for StartScreen.
-    // The StartScreen component is rendered only when gameState is SelectingCategory or Idle.
-    // In this context, `gameState === GameState.LoadingQuestion` would always be false.
-    // Passing `false` explicitly as isLoading because the global loading state (GameState.LoadingQuestion)
-    // is handled by rendering the <Loader /> component, not by an isLoading prop within StartScreen.
-    return <StartScreen onStartGame={handleStartGame} isLoading={false} />;
+    return <StartScreen onStartGame={handleStartGame} isLoading={isLoading} />;
   }
 
-  if (gameState === GameState.LoadingQuestion) {
+  if (gameState === GameState.LoadingQuestion || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
         <Loader />
@@ -160,10 +163,16 @@ const App: React.FC = () => {
     return <EndScreen score={score} onRestart={handleRestart} />;
   }
 
-  if (
-    (gameState === GameState.Playing || gameState === GameState.Answered) &&
-    currentQuestionData
-  ) {
+  if (gameState === GameState.Playing || gameState === GameState.Answered) {
+    if (!questions || currentQuestionIndex >= questions.length) {
+      return <p>Loading questions...</p>;
+    }
+
+    const currentQuestionData = questions[currentQuestionIndex];
+    if (!currentQuestionData) {
+      return <p>Error: Could not load question.</p>;
+    }
+
     return (
       <div className="flex flex-col items-center min-h-screen p-4 md:p-8 pt-8 md:pt-12">
         <Scoreboard score={score} currentQuestionIndex={currentQuestionIndex} />
