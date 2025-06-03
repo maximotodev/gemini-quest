@@ -1,17 +1,14 @@
-// frontend/src/App.tsx
+/// <reference types="vite/client" />
 import "./App.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { GameState, TriviaQuestion } from "./types";
 import {
-  TOTAL_QUESTIONS,
+  // TOTAL_QUESTIONS,
   TIME_PER_QUESTION,
   ANSWER_FEEDBACK_DURATION,
 } from "./constants";
-import {
-  fetchTriviaQuestions, // Changed to fetchTriviaQuestions
-  // Import the function to clear the cache
-  clearCache,
-} from "./services/geminiService";
+import { fetchTriviaQuestions } from "./services/geminiService";
+import { clearCache } from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
 import QuestionDisplay from "./components/QuestionDisplay";
 import Timer from "./components/Timer";
@@ -19,38 +16,46 @@ import Scoreboard from "./components/Scoreboard";
 import EndScreen from "./components/EndScreen";
 import Loader from "./components/Loader";
 import Button from "./components/Button";
+import { randomFacts2025 } from "./utils/randomFacts"; // Import randomFacts
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(
     GameState.SelectingCategory
   );
-  const [questions, setQuestions] = useState<TriviaQuestion[] | null>(null); // Array of questions
+  const [questions, setQuestions] = useState<TriviaQuestion[] | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [userAnswer, setUserAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // New loading state
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [isStartButtonDisabled, setIsStartButtonDisabled] =
+    useState<boolean>(false);
+  const [randomFact, setRandomFact] = useState<string | null>(null); // State for the random fact
 
   const loadQuestions = useCallback(async (category: string) => {
-    // Changed name
     setIsLoading(true);
+    setLoadingMessage("Fetching trivia from the cosmos...");
     setError(null);
     setUserAnswer(null);
+    setIsStartButtonDisabled(true);
+    setGameState(GameState.LoadingQuestion);
+    setRandomFact(null); // Clear the fact
     try {
-      const fetchedQuestions = await fetchTriviaQuestions(category); // Use the new function
+      const fetchedQuestions = await fetchTriviaQuestions(category);
       if (fetchedQuestions && fetchedQuestions.length > 0) {
         setQuestions(fetchedQuestions);
         setGameState(GameState.Playing);
-        setCurrentQuestionIndex(0); // Reset index
+        setCurrentQuestionIndex(0);
         setScore(0);
         setIsTimerPaused(false);
       } else {
         setError(
           "Failed to load questions. The cosmos is silent. Try a different category or try again."
         );
-        setGameState(GameState.SelectingCategory); // Or an error state
+        setGameState(GameState.SelectingCategory);
       }
     } catch (err) {
       console.error(err);
@@ -59,29 +64,31 @@ const App: React.FC = () => {
           ? err.message
           : "An unknown error occurred while fetching questions."
       );
-      setGameState(GameState.SelectingCategory); // Or an error state
+      setGameState(GameState.SelectingCategory);
     } finally {
       setIsLoading(false);
+      setLoadingMessage(null);
+      setIsStartButtonDisabled(false);
     }
   }, []);
 
   const handleStartGame = useCallback(
     (category: string) => {
       setSelectedCategory(category);
-      loadQuestions(category); // Changed to loadQuestions
+      loadQuestions(category);
     },
     [loadQuestions]
   );
 
   const handleAnswer = useCallback(
     (answer: string) => {
-      if (gameState !== GameState.Playing || !questions) return; //Check questions
+      if (gameState !== GameState.Playing || !questions) return;
 
       setIsTimerPaused(true);
       setUserAnswer(answer);
       setGameState(GameState.Answered);
 
-      const currentQuestion = questions[currentQuestionIndex]; // Get current question
+      const currentQuestion = questions[currentQuestionIndex];
       if (currentQuestion && answer === currentQuestion.correctAnswer) {
         setScore((prevScore) => prevScore + 10);
       }
@@ -89,9 +96,9 @@ const App: React.FC = () => {
       setTimeout(() => {
         if (currentQuestionIndex < questions.length - 1) {
           setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
-          setIsTimerPaused(false); // Start timer for next question
-          setGameState(GameState.Playing); // Set state back to playing.
-          setUserAnswer(null); //Clear answer
+          setIsTimerPaused(false);
+          setGameState(GameState.Playing);
+          setUserAnswer(null);
         } else {
           setGameState(GameState.GameOver);
         }
@@ -102,37 +109,43 @@ const App: React.FC = () => {
 
   const handleTimeUp = useCallback(() => {
     if (gameState === GameState.Playing && questions) {
-      // Check if questions loaded
       handleAnswer("__TIME_UP__");
     }
   }, [gameState, handleAnswer, questions]);
 
   const handleRestart = useCallback(async () => {
-    // Clear the questions in the frontend
+    // Clear the questions
     setQuestions(null);
     setGameState(GameState.SelectingCategory);
     setSelectedCategory(null);
-    // Call backend to clear cache
     try {
-      await clearCache(); // Call the clearCache function from geminiService
+      await clearCache();
     } catch (error) {
       console.error("Error clearing cache:", error);
-      // Optionally: set an error state in frontend
     }
   }, []);
 
-  // Effect to handle potential API key issues early
   useEffect(() => {
     if (!import.meta.env.VITE_API_KEY) {
       setError(
         "Gemini API Key is missing. Please configure the VITE_API_KEY environment variable."
       );
-      setGameState(GameState.Idle); // A state to show this specific error
+      setGameState(GameState.Idle);
     }
   }, []);
 
+  // New useEffect to fetch a random fact while loading questions
+  useEffect(() => {
+    if (isLoading && loadingMessage === "Fetching trivia from the cosmos...") {
+      // Display only while loading and fetching from the API.
+      const fact = randomFacts2025();
+      setRandomFact(fact);
+    } else {
+      setRandomFact(null); // Clear when not loading
+    }
+  }, [isLoading, loadingMessage]);
+
   if (error && gameState === GameState.Idle) {
-    // Specific error for API key
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-red-900 text-white">
         <h1 className="text-3xl font-bold mb-4">Configuration Error</h1>
@@ -144,23 +157,47 @@ const App: React.FC = () => {
     );
   }
 
-  if (
-    gameState === GameState.SelectingCategory ||
-    gameState === GameState.Idle
-  ) {
-    return <StartScreen onStartGame={handleStartGame} isLoading={isLoading} />;
-  }
-
-  if (gameState === GameState.LoadingQuestion || isLoading) {
+  if (gameState === GameState.SelectingCategory) {
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-red-900 text-white">
+          <h1 className="text-3xl font-bold mb-4">
+            Oops! Something went wrong
+          </h1>
+          <p className="text-lg">{error}</p>
+          <Button
+            onClick={handleStartGame}
+            variant="secondary"
+            className="mt-4 !w-auto px-4 py-2 text-sm"
+          >
+            Try Again
+          </Button>
+        </div>
+      );
+    }
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6">
-        <Loader />
-      </div>
+      <StartScreen
+        onStartGame={handleStartGame}
+        isLoading={isLoading}
+        isStartButtonDisabled={isStartButtonDisabled}
+      />
     );
   }
 
-  if (gameState === GameState.GameOver) {
-    return <EndScreen score={score} onRestart={handleRestart} />;
+  if (gameState === GameState.LoadingQuestion) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <Loader />
+        {loadingMessage && (
+          <p className="mt-4 text-gray-400">{loadingMessage}</p>
+        )}
+        {randomFact && (
+          <p className="mt-2 text-sm italic text-gray-500">
+            Did you know? {randomFact}
+          </p>
+        )}
+      </div>
+    );
   }
 
   if (gameState === GameState.Playing || gameState === GameState.Answered) {
@@ -178,7 +215,7 @@ const App: React.FC = () => {
         <Scoreboard score={score} currentQuestionIndex={currentQuestionIndex} />
         <div className="mb-8">
           <Timer
-            key={currentQuestionIndex} // Force re-mount to reset timer state on new question
+            key={currentQuestionIndex}
             initialTime={TIME_PER_QUESTION}
             onTimeUp={handleTimeUp}
             isPaused={isTimerPaused}
@@ -190,21 +227,12 @@ const App: React.FC = () => {
           gameState={gameState}
           userAnswer={userAnswer}
         />
-        {error && (
-          <div className="mt-6 p-4 bg-red-500 text-white rounded-md shadow-lg w-full max-w-2xl text-center">
-            <p className="font-semibold">Oops! Something went wrong:</p>
-            <p>{error}</p>
-            <Button
-              onClick={handleRestart}
-              variant="secondary"
-              className="mt-4 !w-auto px-4 py-2 text-sm"
-            >
-              Try New Game
-            </Button>
-          </div>
-        )}
       </div>
     );
+  }
+
+  if (gameState === GameState.GameOver) {
+    return <EndScreen score={score} onRestart={handleRestart} />;
   }
 
   return (
@@ -214,7 +242,7 @@ const App: React.FC = () => {
         Restart
       </Button>
     </div>
-  ); // Fallback
+  );
 };
 
 export default App;
