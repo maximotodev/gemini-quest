@@ -3,12 +3,11 @@ import "./App.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { GameState, TriviaQuestion } from "./types";
 import {
-  // TOTAL_QUESTIONS,
+  TOTAL_QUESTIONS,
   TIME_PER_QUESTION,
   ANSWER_FEEDBACK_DURATION,
 } from "./constants";
 import { fetchTriviaQuestions } from "./services/geminiService";
-import { clearCache } from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
 import QuestionDisplay from "./components/QuestionDisplay";
 import Timer from "./components/Timer";
@@ -16,8 +15,8 @@ import Scoreboard from "./components/Scoreboard";
 import EndScreen from "./components/EndScreen";
 import Loader from "./components/Loader";
 import Button from "./components/Button";
-import { randomFacts2025 } from "./utils/randomFacts"; // Import randomFacts
-
+import { clearCache } from "./services/geminiService"; // Import clearCache
+import { randomFacts2025 } from "./utils/randomFacts";
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(
     GameState.SelectingCategory
@@ -33,7 +32,10 @@ const App: React.FC = () => {
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [isStartButtonDisabled, setIsStartButtonDisabled] =
     useState<boolean>(false);
-  const [randomFact, setRandomFact] = useState<string | null>(null); // State for the random fact
+  const [randomFact, setRandomFact] = useState<string | null>(null);
+  const [factIntervalId, setFactIntervalId] = useState<NodeJS.Timer | null>(
+    null
+  ); // State for the interval ID
 
   const loadQuestions = useCallback(async (category: string) => {
     setIsLoading(true);
@@ -42,7 +44,7 @@ const App: React.FC = () => {
     setUserAnswer(null);
     setIsStartButtonDisabled(true);
     setGameState(GameState.LoadingQuestion);
-    setRandomFact(null); // Clear the fact
+    setRandomFact(null);
     try {
       const fetchedQuestions = await fetchTriviaQuestions(category);
       if (fetchedQuestions && fetchedQuestions.length > 0) {
@@ -118,12 +120,50 @@ const App: React.FC = () => {
     setQuestions(null);
     setGameState(GameState.SelectingCategory);
     setSelectedCategory(null);
-    try {
-      await clearCache();
-    } catch (error) {
-      console.error("Error clearing cache:", error);
-    }
   }, []);
+
+  useEffect(() => {
+    // Clear the cache on unmount (browser close/refresh)
+    const handleBeforeUnload = async () => {
+      try {
+        await clearCache();
+      } catch (error) {
+        console.error("Error clearing cache on unload:", error);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Clean up: Remove the event listener when the component unmounts
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []); // Empty dependency array: Run once on mount and unmount
+  // New useEffect for the random fact interval
+  useEffect(() => {
+    // Function to update the random fact
+    const updateFact = () => {
+      if (
+        isLoading &&
+        loadingMessage === "Fetching trivia from the cosmos..."
+      ) {
+        const fact = randomFacts2025();
+        setRandomFact(fact);
+      } else {
+        setRandomFact(null); // Clear when not loading
+      }
+    };
+
+    // Set the interval
+    const intervalId = setInterval(updateFact, 7000); // 7 seconds (7000 milliseconds)
+    setFactIntervalId(intervalId);
+
+    // Clean up the interval on unmount
+    return () => {
+      clearInterval(intervalId);
+      setFactIntervalId(null);
+    };
+  }, [isLoading, loadingMessage]);
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_KEY) {
@@ -137,11 +177,10 @@ const App: React.FC = () => {
   // New useEffect to fetch a random fact while loading questions
   useEffect(() => {
     if (isLoading && loadingMessage === "Fetching trivia from the cosmos...") {
-      // Display only while loading and fetching from the API.
       const fact = randomFacts2025();
       setRandomFact(fact);
     } else {
-      setRandomFact(null); // Clear when not loading
+      setRandomFact(null);
     }
   }, [isLoading, loadingMessage]);
 
