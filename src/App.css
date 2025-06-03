@@ -1,3 +1,7 @@
+/* App.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 body {
   background-color: #282c34; /* Example dark background color */
   /* Other styles for the body element */
