@@ -1,44 +1,49 @@
+// Button.tsx
+import React from "react";
 
-import React from 'react';
-
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps {
+  variant: "primary" | "secondary" | "success" | "error"; // Add 'success' and 'error'
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'correct' | 'incorrect' | 'neutral';
+  onClick: () => void;
+  disabled?: boolean;
   className?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
+  variant,
   children,
-  variant = 'primary',
-  className = '',
-  ...props
+  onClick,
+  disabled,
+  className,
 }) => {
-  let baseStyle = "font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed text-lg w-full";
-  
+  let baseClasses =
+    "inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150";
+  let variantClasses = "";
+
   switch (variant) {
-    case 'primary':
-      baseStyle += ' bg-brand-primary hover:bg-cyan-500 text-white focus:ring-brand-primary';
+    case "primary":
+      variantClasses = "bg-blue-500 hover:bg-blue-700 text-white shadow";
       break;
-    case 'secondary':
-      baseStyle += ' bg-brand-secondary hover:bg-violet-600 text-white focus:ring-brand-secondary';
+    case "secondary":
+      variantClasses = "bg-gray-200 hover:bg-gray-300 text-gray-800 shadow";
       break;
-    case 'correct':
-      baseStyle += ' bg-green-500 hover:bg-green-600 text-white focus:ring-green-500';
+    case "success":
+      variantClasses = "bg-green-500 hover:bg-green-700 text-white shadow"; // Tailwind classes for success
       break;
-    case 'incorrect':
-      baseStyle += ' bg-red-500 hover:bg-red-600 text-white focus:ring-red-500';
+    case "error":
+      variantClasses = "bg-red-500 hover:bg-red-700 text-white shadow"; // Tailwind classes for error
       break;
-    case 'neutral':
-      baseStyle += ' bg-slate-700 hover:bg-slate-600 text-slate-100 focus:ring-slate-500';
-      break;
+    default:
+      variantClasses = "bg-gray-200 hover:bg-gray-300 text-gray-800 shadow"; // Default style
   }
 
+  const combinedClasses = `${baseClasses} ${variantClasses} ${className || ""}`; // Combine all the classes
+
   return (
-    <button className={`${baseStyle} ${className}`} {...props}>
+    <button onClick={onClick} disabled={disabled} className={combinedClasses}>
       {children}
     </button>
   );
 };
 
 export default Button;
-    

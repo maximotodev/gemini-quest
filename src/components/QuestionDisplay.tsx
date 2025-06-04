@@ -1,62 +1,54 @@
-
-import React from 'react';
-import { TriviaQuestion, GameState } from '../types';
-import Button from './Button';
-import CheckIcon from './icons/CheckIcon';
-import XIcon from './icons/XIcon';
+import React, { memo } from "react";
+import { TriviaQuestion } from "../types";
+import Button from "./Button";
 
 interface QuestionDisplayProps {
-  questionData: TriviaQuestion;
+  questionData: TriviaQuestion | null;
   onSelectAnswer: (answer: string) => void;
-  gameState: GameState;
+  gameState: "Playing" | "Answered"; // or use your GameState enum
   userAnswer: string | null;
 }
 
-const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
-  questionData,
-  onSelectAnswer,
-  gameState,
-  userAnswer,
-}) => {
-  const { question, options, correctAnswer } = questionData;
-  const isAnswered = gameState === GameState.Answered;
+const QuestionDisplay: React.FC<QuestionDisplayProps> = memo(
+  ({ questionData, onSelectAnswer, gameState, userAnswer }) => {
+    if (!questionData) {
+      return <p>Loading question...</p>;
+    }
 
-  const getButtonVariant = (option: string): 'correct' | 'incorrect' | 'neutral' => {
-    if (!isAnswered) return 'neutral';
-    if (option === correctAnswer) return 'correct';
-    if (option === userAnswer && option !== correctAnswer) return 'incorrect';
-    return 'neutral';
-  };
+    return (
+      <div>
+        <p className="text-2xl mb-4">{questionData.question}</p>
+        <div className="grid grid-cols-2 gap-4">
+          {questionData.options.map((option) => {
+            const isCorrect = option === questionData.correctAnswer;
+            const isSelected = userAnswer === option;
+            const isAnswered = gameState === "Answered";
+            let buttonVariant = "primary"; // Default
 
-  return (
-    <div className="w-full max-w-2xl p-6 bg-slate-800 rounded-xl shadow-2xl animate-slide-in-bottom">
-      <h2 className="text-2xl md:text-3xl font-semibold text-center text-slate-100 mb-8 leading-tight" dangerouslySetInnerHTML={{ __html: question }}></h2>
-      <div className="space-y-4">
-        {options.map((option, index) => {
-          const variant = getButtonVariant(option);
-          const isSelectedIncorrect = isAnswered && option === userAnswer && option !== correctAnswer;
-          const isActualCorrect = isAnswered && option === correctAnswer;
+            if (isAnswered) {
+              buttonVariant = isCorrect
+                ? "success"
+                : isSelected
+                ? "error"
+                : "primary";
+            }
 
-          return (
-            <Button
-              key={index}
-              onClick={() => onSelectAnswer(option)}
-              disabled={isAnswered}
-              variant={variant}
-              className={`flex items-center justify-between ${
-                isAnswered && variant === 'neutral' ? 'opacity-60' : ''
-              }`}
-            >
-              <span dangerouslySetInnerHTML={{ __html: option }}></span>
-              {isActualCorrect && <CheckIcon className="w-6 h-6 text-white" />}
-              {isSelectedIncorrect && <XIcon className="w-6 h-6 text-white" />}
-            </Button>
-          );
-        })}
+            return (
+              <Button
+                key={option}
+                onClick={() => onSelectAnswer(option)}
+                variant={buttonVariant}
+                disabled={isAnswered}
+                className="!w-auto px-4 py-3 text-lg"
+              >
+                {option}
+              </Button>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);
 
 export default QuestionDisplay;
-    

@@ -1,5 +1,5 @@
-// src/components/StartScreen.tsx
-import React from "react";
+// StartScreen.tsx
+import React, { useState } from "react";
 import Button from "./Button";
 
 interface StartScreenProps {
@@ -21,6 +21,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   isLoading,
   isStartButtonDisabled,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategory(category);
+    onStartGame(category);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
       <h1 className="text-4xl font-bold mb-8">Gemini Quest</h1>
@@ -28,10 +35,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {categories.map((category) => (
         <Button
           key={category}
-          onClick={() => onStartGame(category)}
+          onClick={() => handleCategoryClick(category)}
           variant="primary"
-          disabled={isLoading || isStartButtonDisabled} //Disable button
-          className="mb-2 !w-auto px-6 py-3 text-lg"
+          disabled={isLoading || isStartButtonDisabled}
+          className={`mb-2 !w-auto px-6 py-3 text-lg ${
+            selectedCategory === category ? "bg-blue-500 text-white" : ""
+          }`}
         >
           {category}
         </Button>
