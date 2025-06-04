@@ -144,6 +144,24 @@ const App: React.FC = () => {
       setRandomFact(null); // Clear when not loading
     }
   }, [isLoading, loadingMessage]);
+  useEffect(() => {
+    // Clear the cache on unmount (browser close/refresh)
+    const handleBeforeUnload = async () => {
+      try {
+        await clearCache(); // Call the clearCache function from geminiService
+        console.log("Clearing cache on unload"); //Add this line
+      } catch (error) {
+        console.error("Error clearing cache on unload:", error);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Clean up: Remove the event listener when the component unmounts
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []); // Empty dependency array: Run once on mount and unmount
 
   if (error && gameState === GameState.Idle) {
     return (
