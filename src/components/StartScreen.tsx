@@ -11,6 +11,7 @@ interface StartScreenProps {
 const categories = [
   "General Knowledge",
   "Science",
+  "Pop Culture",
   "History",
   "Geography",
   "Computers",
@@ -30,7 +31,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-      <h1 className="text-4xl font-bold mb-8">Gemini Quest</h1>
+      <h1 className="text-4xl font-bold mb-8">Gemini Trivia Quest</h1>
       <p className="text-lg mb-4">Choose a Category:</p>
       {categories.map((category) => (
         <Button
