@@ -6,10 +6,12 @@ export const API_BASE_URL = "https://gemini-quest.onrender.com"; // Or your depl
 export const categories = [
   "General Knowledge",
   "Science",
+  "Bitcoin",
   "History",
   "Pop Culture",
   "Geography",
   "Computers",
+  "Brain Teasers",
 ];
 
 export enum GameState { //  <--- This is the fix to use
