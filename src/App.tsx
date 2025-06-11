@@ -56,6 +56,7 @@ const App: React.FC = () => {
           TOTAL_QUESTIONS
         );
         if (fetchedQuestions && fetchedQuestions.length > 0) {
+          //Check for length > 0
           // Filter out already asked questions, if any.
           const uniqueQuestions = fetchedQuestions.filter(
             (question) => !askedQuestions.has(question.question)

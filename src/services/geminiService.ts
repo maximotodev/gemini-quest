@@ -1,3 +1,4 @@
+// geminiService.ts
 import axios from "axios";
 import { TriviaQuestion } from "../types";
 import { API_BASE_URL } from "../constants";
