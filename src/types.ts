@@ -2,6 +2,7 @@ export interface TriviaQuestion {
   question: string;
   options: string[];
   correctAnswer: string;
+  explanation?: string; // Add explanation, make it optional with ?
 }
 
 export interface GeminiResponseFormat {

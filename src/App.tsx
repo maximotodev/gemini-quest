@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import "./App.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { GameState, TriviaQuestion } from "./types";
@@ -6,6 +5,8 @@ import {
   TOTAL_QUESTIONS,
   TIME_PER_QUESTION,
   ANSWER_FEEDBACK_DURATION,
+  API_BASE_URL,
+  categories,
 } from "./constants";
 import { fetchTriviaQuestions } from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
@@ -15,8 +16,8 @@ import Scoreboard from "./components/Scoreboard";
 import EndScreen from "./components/EndScreen";
 import Loader from "./components/Loader";
 import Button from "./components/Button";
-import { clearCache } from "./services/geminiService"; // Import clearCache
 import { randomFacts2025 } from "./utils/randomFacts";
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(
     GameState.SelectingCategory
@@ -35,44 +36,69 @@ const App: React.FC = () => {
   const [randomFact, setRandomFact] = useState<string | null>(null);
   const [factIntervalId, setFactIntervalId] = useState<NodeJS.Timer | null>(
     null
-  ); // State for the interval ID
+  );
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [askedQuestions, setAskedQuestions] = useState<Set<string>>(new Set()); // Keep track of questions
 
-  const loadQuestions = useCallback(async (category: string) => {
-    setIsLoading(true);
-    setLoadingMessage("Fetching trivia from the cosmos...");
-    setError(null);
-    setUserAnswer(null);
-    setIsStartButtonDisabled(true);
-    setGameState(GameState.LoadingQuestion);
-    setRandomFact(null);
-    try {
-      const fetchedQuestions = await fetchTriviaQuestions(category);
-      if (fetchedQuestions && fetchedQuestions.length > 0) {
-        setQuestions(fetchedQuestions);
-        setGameState(GameState.Playing);
-        setCurrentQuestionIndex(0);
-        setScore(0);
-        setIsTimerPaused(false);
-      } else {
+  const loadQuestions = useCallback(
+    async (category: string) => {
+      setIsLoading(true);
+      setLoadingMessage("Fetching trivia from the cosmos...");
+      setError(null);
+      setUserAnswer(null);
+      setExplanation(null);
+      setIsStartButtonDisabled(true);
+      setGameState(GameState.LoadingQuestion);
+      setRandomFact(null);
+      try {
+        const fetchedQuestions = await fetchTriviaQuestions(
+          category,
+          TOTAL_QUESTIONS
+        );
+        if (fetchedQuestions && fetchedQuestions.length > 0) {
+          // Filter out already asked questions, if any.
+          const uniqueQuestions = fetchedQuestions.filter(
+            (question) => !askedQuestions.has(question.question)
+          );
+          if (uniqueQuestions.length < TOTAL_QUESTIONS) {
+            setError(
+              "Not enough unique questions available in this category. Please try a different category."
+            );
+            setGameState(GameState.SelectingCategory);
+            return;
+          }
+
+          setQuestions(uniqueQuestions);
+          setGameState(GameState.Playing);
+          setCurrentQuestionIndex(0);
+          setScore(0);
+          setIsTimerPaused(false);
+          setAskedQuestions(
+            (prevAsked) =>
+              new Set([...prevAsked, ...uniqueQuestions.map((q) => q.question)])
+          );
+        } else {
+          setError(
+            "Failed to load questions. The cosmos is silent. Try a different category or try again."
+          );
+          setGameState(GameState.SelectingCategory);
+        }
+      } catch (err) {
+        console.error(err);
         setError(
-          "Failed to load questions. The cosmos is silent. Try a different category or try again."
+          err instanceof Error
+            ? err.message
+            : "An unknown error occurred while fetching questions."
         );
         setGameState(GameState.SelectingCategory);
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage(null);
+        setIsStartButtonDisabled(false);
       }
-    } catch (err) {
-      console.error(err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "An unknown error occurred while fetching questions."
-      );
-      setGameState(GameState.SelectingCategory);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage(null);
-      setIsStartButtonDisabled(false);
-    }
-  }, []);
+    },
+    [askedQuestions]
+  );
 
   const handleStartGame = useCallback(
     (category: string) => {
@@ -91,20 +117,26 @@ const App: React.FC = () => {
       setGameState(GameState.Answered);
 
       const currentQuestion = questions[currentQuestionIndex];
-      if (currentQuestion && answer === currentQuestion.correctAnswer) {
-        setScore((prevScore) => prevScore + 10);
+      if (currentQuestion) {
+        if (answer === currentQuestion.correctAnswer) {
+          setScore((prevScore) => prevScore + 10);
+        }
+        setExplanation(
+          currentQuestion.explanation || "No explanation available."
+        );
       }
 
       setTimeout(() => {
-        if (currentQuestionIndex < questions.length - 1) {
+        if (currentQuestionIndex < TOTAL_QUESTIONS - 1) {
           setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
           setIsTimerPaused(false);
           setGameState(GameState.Playing);
           setUserAnswer(null);
+          setExplanation(null); // Clear explanation for the next question
         } else {
           setGameState(GameState.GameOver);
         }
-      }, ANSWER_FEEDBACK_DURATION);
+      }, ANSWER_FEEDBACK_DURATION + 3000); // Add 4 second delay.
     },
     [gameState, questions, currentQuestionIndex]
   );
@@ -115,21 +147,18 @@ const App: React.FC = () => {
     }
   }, [gameState, handleAnswer, questions]);
 
-  const handleRestart = useCallback(async () => {
-    // Clear the questions
+  const handleRestart = () => {
     setQuestions(null);
     setGameState(GameState.SelectingCategory);
     setSelectedCategory(null);
-  }, []);
+    setExplanation(null); // Clear explanation on restart
+    setAskedQuestions(new Set()); // Reset the asked questions
+  };
 
   useEffect(() => {
     // Clear the cache on unmount (browser close/refresh)
     const handleBeforeUnload = async () => {
-      try {
-        await clearCache();
-      } catch (error) {
-        console.error("Error clearing cache on unload:", error);
-      }
+      console.log("No Cache Clearing Needed");
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -139,6 +168,7 @@ const App: React.FC = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []); // Empty dependency array: Run once on mount and unmount
+
   // New useEffect for the random fact interval
   useEffect(() => {
     // Function to update the random fact
@@ -173,34 +203,6 @@ const App: React.FC = () => {
       setGameState(GameState.Idle);
     }
   }, []);
-
-  // New useEffect to fetch a random fact while loading questions
-  useEffect(() => {
-    if (isLoading && loadingMessage === "Fetching trivia from the cosmos...") {
-      const fact = randomFacts2025();
-      setRandomFact(fact);
-    } else {
-      setRandomFact(null);
-    }
-  }, [isLoading, loadingMessage]);
-  useEffect(() => {
-    // Clear the cache on unmount (browser close/refresh)
-    const handleBeforeUnload = async () => {
-      try {
-        await clearCache(); // Call the clearCache function from geminiService
-        console.log("Clearing cache on unload"); //Add this line
-      } catch (error) {
-        console.error("Error clearing cache on unload:", error);
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    // Clean up: Remove the event listener when the component unmounts
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []); // Empty dependency array: Run once on mount and unmount
 
   if (error && gameState === GameState.Idle) {
     return (
@@ -258,7 +260,7 @@ const App: React.FC = () => {
   }
 
   if (gameState === GameState.Playing || gameState === GameState.Answered) {
-    if (!questions || currentQuestionIndex >= questions.length) {
+    if (!questions || currentQuestionIndex >= TOTAL_QUESTIONS) {
       return <p>Loading questions...</p>;
     }
 
@@ -284,6 +286,12 @@ const App: React.FC = () => {
           gameState={gameState}
           userAnswer={userAnswer}
         />
+        {explanation && (
+          <div className="mt-4 p-3 bg-gray-100 rounded-md shadow-md text-sm">
+            <p className="font-semibold">Explanation:</p>
+            <p>{explanation}</p>
+          </div>
+        )}
       </div>
     );
   }
