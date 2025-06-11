@@ -1,19 +1,17 @@
-// frontend/src/services/geminiService.ts
 import axios from "axios";
 import { TriviaQuestion } from "../types";
-
-const API_BASE_URL = "https://gemini-quest.onrender.com"; // Or your deployed backend URL
+import { API_BASE_URL } from "../constants";
 
 export const fetchTriviaQuestions = async (
   category: string,
-  numQuestions: number = 10
+  numQuestions: number
 ): Promise<TriviaQuestion[] | null> => {
   try {
     const response = await axios.post<TriviaQuestion[]>(
-      `${API_BASE_URL}/api/questions`, // Changed endpoint
-      { category, num_questions: numQuestions } // Pass num_questions
+      `${API_BASE_URL}/api/questions`,
+      { category, num_questions: numQuestions }
     );
-    return response.data; // Return the array of questions
+    return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error("Axios Error:", error.message, error.response?.data);
@@ -21,14 +19,5 @@ export const fetchTriviaQuestions = async (
       console.error("An unexpected cosmic event occurred:", error);
     }
     return null;
-  }
-};
-
-export const clearCache = async () => {
-  try {
-    await axios.post(`${API_BASE_URL}/api/clear_cache`); // Call the new endpoint
-  } catch (error) {
-    console.error("Error clearing cache:", error);
-    // Handle the error (e.g., show a message to the user)
   }
 };
