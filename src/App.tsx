@@ -56,7 +56,6 @@ const App: React.FC = () => {
           TOTAL_QUESTIONS
         );
         if (fetchedQuestions && fetchedQuestions.length > 0) {
-          //Check for length > 0
           // Filter out already asked questions, if any.
           const uniqueQuestions = fetchedQuestions.filter(
             (question) => !askedQuestions.has(question.question)
@@ -80,16 +79,16 @@ const App: React.FC = () => {
           );
         } else {
           setError(
-            "Failed to load questions. The cosmos is silent. Try a different category or try again."
-          );
+            "Oh no! Failed to load questions. The cosmos is silent.  Please try again or select a different category."
+          ); // Apology Message
           setGameState(GameState.SelectingCategory);
         }
       } catch (err) {
         console.error(err);
         setError(
-          err instanceof Error
-            ? err.message
-            : "An unknown error occurred while fetching questions."
+          `We're so sorry, something went wrong while fetching questions. Please try again, or select a different category. Detailed error: ${
+            err instanceof Error ? err.message : "An unknown error occurred"
+          }` // Apology Message and Detail
         );
         setGameState(GameState.SelectingCategory);
       } finally {
@@ -156,6 +155,10 @@ const App: React.FC = () => {
     setAskedQuestions(new Set()); // Reset the asked questions
   };
 
+  const handleReload = () => {
+    window.location.reload(); // Reload the entire page
+  };
+
   useEffect(() => {
     // Clear the cache on unmount (browser close/refresh)
     const handleBeforeUnload = async () => {
@@ -218,23 +221,6 @@ const App: React.FC = () => {
   }
 
   if (gameState === GameState.SelectingCategory) {
-    if (error) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-red-900 text-white">
-          <h1 className="text-3xl font-bold mb-4">
-            Oops! Something went wrong
-          </h1>
-          <p className="text-lg">{error}</p>
-          <Button
-            onClick={handleStartGame}
-            variant="secondary"
-            className="mt-4 !w-auto px-4 py-2 text-sm"
-          >
-            Try Again
-          </Button>
-        </div>
-      );
-    }
     return (
       <StartScreen
         onStartGame={handleStartGame}
@@ -303,10 +289,23 @@ const App: React.FC = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <p>Something went wrong. Current state: {gameState}</p>
-      <Button onClick={handleRestart} variant="primary">
-        Restart
-      </Button>
+      {error ? (
+        <div className="text-center">
+          <p className="text-red-500 mb-4">
+            We're very sorry, but an error occurred: {error}
+          </p>
+          <Button onClick={handleReload} variant="primary">
+            Reload Page
+          </Button>
+        </div>
+      ) : (
+        <>
+          <p>Something went wrong. Current state: {gameState}</p>
+          <Button onClick={handleRestart} variant="primary">
+            Restart
+          </Button>
+        </>
+      )}
     </div>
   );
 };
