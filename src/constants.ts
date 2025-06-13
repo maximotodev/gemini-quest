@@ -1,8 +1,9 @@
 // src/constants.ts
 export const TOTAL_QUESTIONS = 10;
-export const TIME_PER_QUESTION = 20; // Seconds
-export const ANSWER_FEEDBACK_DURATION = 2000; // Milliseconds (2 seconds)
-export const API_BASE_URL = "https://gemini-quest.onrender.com"; // Or your deployed backend URL
+export const TIME_PER_QUESTION = 20;
+export const ANSWER_FEEDBACK_DURATION = 2000;
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000"; // Default value
 export const categories = [
   "General Knowledge",
   "Science",
@@ -13,12 +14,3 @@ export const categories = [
   "Computers",
   "Brain Teasers",
 ];
-
-export enum GameState { //  <--- This is the fix to use
-  Idle,
-  SelectingCategory,
-  LoadingQuestion,
-  Playing,
-  Answered,
-  GameOver,
-}
