@@ -21,7 +21,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
           <Button
             key={category}
             onClick={() => onSelectCategory(category)}
-            variant="neutral"
+            variant="primary" // Changed to primary. "neutral" wasn't a variant
             className="hover:bg-brand-secondary focus:ring-brand-secondary"
             disabled={disabled}
           >

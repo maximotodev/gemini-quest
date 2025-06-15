@@ -5,8 +5,6 @@ import {
   TOTAL_QUESTIONS,
   TIME_PER_QUESTION,
   ANSWER_FEEDBACK_DURATION,
-  API_BASE_URL,
-  categories,
 } from "./constants";
 import { fetchTriviaQuestions } from "./services/geminiService";
 import StartScreen from "./components/StartScreen";
@@ -83,11 +81,12 @@ const App: React.FC = () => {
           ); // Apology Message
           setGameState(GameState.SelectingCategory);
         }
-      } catch (err) {
+      } catch (err: any) {
+        // Explicitly type 'err' as 'any' or 'Error'
         console.error(err);
         setError(
           `We're so sorry, something went wrong while fetching questions. Please try again, or select a different category. Detailed error: ${
-            err instanceof Error ? err.message : "An unknown error occurred"
+            err?.message || "An unknown error occurred" // Use optional chaining
           }` // Apology Message and Detail
         );
         setGameState(GameState.SelectingCategory);
@@ -233,7 +232,7 @@ const App: React.FC = () => {
   if (gameState === GameState.LoadingQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6">
-        <Loader />
+        <Loader message={loadingMessage} /> {/* Use message prop */}
         {loadingMessage && (
           <p className="mt-4 text-gray-400">{loadingMessage}</p>
         )}
